@@ -1856,6 +1856,7 @@
   "config.gtceu.option.removeVanillaOreGen": "removeVanillaOreGen",
   "config.gtceu.option.removeVanillaTNTRecipe": "removeVanillaTNTRecipe",
   "config.gtceu.option.renderFluids": "renderFluids",
+  "config.gtceu.option.renderGrowingPlants": "renderGrowingPlants",
   "config.gtceu.option.renderer": "renderer",
   "config.gtceu.option.replaceMinedBlocksWith": "replaceMinedBlocksWith",
   "config.gtceu.option.requireGTToolsForBlocks": "requireGTToolsForBlocks",

@@ -848,6 +848,10 @@ public class ConfigHolder {
         public boolean renderFluids = true;
 
         @Configurable
+        @Configurable.Comment({ "Render growing plants in multiblocks that support them?", "Default: true" })
+        public boolean renderGrowingPlants = true;
+
+        @Configurable
         @Configurable.Comment({ "Whether or not to color tiered machine highlights in the tier color",
                 "Default: true" })
         public boolean coloredTieredMachineOutline = true;
