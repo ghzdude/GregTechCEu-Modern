@@ -137,7 +137,8 @@ public class TestMuiMachine2 extends MetaMachine implements IMuiMachine {
         schemaCol.child(new SchemaWidget.LayerButton(mutableSchema, 0, maxLayers)
                 .onMouseReleased((context, button) -> {
                     layer = ++layer % maxLayers;
-                    this.refreshViewWidget(); // this may not be necessary?
+                    // this may not be necessary? it should be handled by the render filter
+                    this.refreshViewWidget();
                     return true;
                 }));
         col.child(schemaCol);
