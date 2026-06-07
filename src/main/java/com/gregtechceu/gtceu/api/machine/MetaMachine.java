@@ -57,8 +57,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.TickTask;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
@@ -88,6 +86,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.capabilities.Capabilities;
 import brachy.modularui.drawable.UITexture;
+import brachy.modularui.drawable.schema.ISchema;
 import com.mojang.datafixers.util.Pair;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -138,6 +137,7 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
 
     private final List<TickableSubscription> serverTicks;
     private final List<TickableSubscription> waitingToAdd;
+    private @Nullable TickTaskHandler tickingHandler;
 
     // If this machine data needs to be migrated from 7.x to 8.x
     private boolean isOldMachineData = false;
@@ -203,9 +203,10 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
      * @param runnable The callback to execute
      */
     public final void scheduleForNextServerTick(Runnable runnable) {
-        if (getLevel() instanceof ServerLevel serverLevel) {
-            serverLevel.getServer().tell(new TickTask(0, runnable));
-        }
+        getTickingHandler().serverTask(TickTask.of(runnable));
+        // if (getLevel() instanceof ServerLevel serverLevel) {
+        // serverLevel.getServer().tell(new TickTask(0, runnable));
+        // }
     }
 
     @Override
@@ -225,6 +226,7 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
             serverTick.unsubscribe();
         }
         serverTicks.clear();
+        getTickingHandler().clear();
     }
 
     /**
@@ -255,10 +257,15 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
             var subscription = new TickableSubscription(runnable);
             waitingToAdd.add(subscription);
             return subscription;
-        } else if (getLevel() instanceof DummyWorld) {
+        } else if (getLevel() instanceof ISchema) {
             var subscription = new TickableSubscription(runnable);
             waitingToAdd.add(subscription);
             return subscription;
+        }
+        if (getLevel() instanceof ISchema) {
+            getTickingHandler().addTask(TickTask.of(runnable));
+        } else {
+            getTickingHandler().clientTask(TickTask.of(runnable));
         }
         return null;
     }
@@ -267,6 +274,13 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
         if (current != null) {
             current.unsubscribe();
         }
+    }
+
+    public TickTaskHandler getTickingHandler() {
+        if (tickingHandler == null) {
+            this.tickingHandler = new TickTaskHandler(getLevel().isClientSide());
+        }
+        return tickingHandler;
     }
 
     @ApiStatus.Internal
@@ -296,6 +310,8 @@ public class MetaMachine extends ManagedSyncBlockEntity implements IGregtechBloc
             serverTicks.addAll(waitingToAdd);
             waitingToAdd.clear();
         }
+
+        getTickingHandler().tick();
 
         for (var iter = serverTicks.iterator(); iter.hasNext();) {
             var tickable = iter.next();

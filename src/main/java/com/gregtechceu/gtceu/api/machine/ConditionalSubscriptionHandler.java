@@ -5,7 +5,7 @@ import com.gregtechceu.gtceu.api.blockentity.ITickSubscription;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.thread.BlockableEventLoop;
+import net.minecraft.util.thread.ProcessorHandle;
 import net.minecraft.world.level.Level;
 
 import org.jetbrains.annotations.Nullable;
@@ -38,8 +38,11 @@ public class ConditionalSubscriptionHandler {
      * @param level The level to create the subscription in.
      */
     public void initialize(Level level) {
-        if (level instanceof ServerLevel serverLevel) {
-            this.initialize(serverLevel.getServer());
+        if (level instanceof ServerLevel) {
+            this.initialize(level.getServer());
+        } else if (level instanceof ProcessorHandle<?>) {
+            // noinspection unchecked
+            this.initialize(((ProcessorHandle<TickTask>) level));
         }
     }
 
@@ -48,7 +51,7 @@ public class ConditionalSubscriptionHandler {
      *
      * @param server The event loop to create the subscription in. This is usually the {@link MinecraftServer}.
      */
-    protected void initialize(BlockableEventLoop<TickTask> server) {
+    protected void initialize(ProcessorHandle<TickTask> server) {
         server.tell(new TickTask(0, this::updateSubscription));
     }
 
