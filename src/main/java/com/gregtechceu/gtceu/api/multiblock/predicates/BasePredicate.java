@@ -47,6 +47,7 @@ public class BasePredicate {
     public int maxCount = -1;
     public int minSliceCount = -1;
     public int maxSliceCount = -1;
+    // these three variables are not used anywhere
     public int previewCount = -1;
     public boolean disableRenderFormed = false;
     public @Nullable String nbtParser;
@@ -113,7 +114,6 @@ public class BasePredicate {
 
     // test with error predicate directly
     // no global/slice checks
-    // also unused
     public @Nullable PatternError testRaw(CurrentBlockInfo currBlock) {
         return errorPredicate.apply(currBlock);
     }
@@ -122,18 +122,16 @@ public class BasePredicate {
     public @Nullable PatternError testLimited(CurrentBlockInfo currBlock,
                                               Object2IntMap<BasePredicate> globalCache,
                                               @Nullable Object2IntMap<BasePredicate> layerCache) {
-        // errorPredicate is called twice here
-        PatternError error = testGlobal(currBlock, globalCache, layerCache);
+        PatternError error = testRaw(currBlock);
+        if (error != null || layerCache == null) return error;
+        error = testGlobal(globalCache);
         if (error != null) return error;
-        return testLayer(currBlock, layerCache);
+        return testLayer(layerCache);
     }
 
-    public @Nullable PatternError testGlobal(CurrentBlockInfo currentBlock,
-                                             Object2IntMap<BasePredicate> globalCache,
-                                             @Nullable Object2IntMap<BasePredicate> layerCache) {
-        PatternError error = errorPredicate.apply(currentBlock);
-        globalCache.mergeInt(this, (error == null ? 1 : 0), Integer::sum);
-        if ((minCount == -1 && maxCount == -1) || error != null || layerCache == null) return error;
+    public @Nullable PatternError testGlobal(Object2IntMap<BasePredicate> globalCache) {
+        globalCache.mergeInt(this, 1, Integer::sum);
+        if (minCount == -1 && maxCount == -1) return null;
 
         int count = globalCache.getInt(this);
         if (maxCount == -1 || count <= maxCount) return null;
@@ -141,20 +139,16 @@ public class BasePredicate {
         return new SinglePredicateError(this, SinglePredicateError.ErrorType.MAX_COUNT, count);
     }
 
-    public @Nullable PatternError testLayer(CurrentBlockInfo currBlock,
-                                            @Nullable Object2IntMap<BasePredicate> layerCache) {
-        PatternError error = errorPredicate.apply(currBlock);
-        if (layerCache == null) return error;
+    public @Nullable PatternError testLayer(Object2IntMap<BasePredicate> layerCache) {
+        layerCache.mergeInt(this, 1, Integer::sum);
+        if (minSliceCount == -1 && maxSliceCount == -1) return null;
 
-        layerCache.mergeInt(this, (error == null ? 1 : 0), Integer::sum);
-        if ((minSliceCount == -1 && maxSliceCount == -1) || error != null) return error;
+        int count = layerCache.getInt(this);
+        if (maxSliceCount == -1 || count <= maxSliceCount) return null;
 
-        if (maxSliceCount != -1 && layerCache.getInt(this) > maxSliceCount) {
-            return new SinglePredicateError(this, SinglePredicateError.ErrorType.MAX_LAYER_COUNT,
-                    layerCache.getInt(this));
-        }
+        return new SinglePredicateError(this, SinglePredicateError.ErrorType.MAX_LAYER_COUNT,
+                count);
 
-        return null;
     }
 
     public String getPredicateName() {
