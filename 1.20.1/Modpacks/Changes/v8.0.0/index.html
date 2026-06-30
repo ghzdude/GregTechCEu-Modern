@@ -3964,6 +3964,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#empty-content-check-for-recipe-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Empty content check for recipe capabilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#other-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4752,6 +4763,8 @@
       
         
       
+        
+      
     
     
     
@@ -4821,6 +4834,34 @@
     
   
     Sync Basics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../Development/MUI2/Syncing/Sync-Handlers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sync Handlers
   
 
     
@@ -5266,6 +5307,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#empty-content-check-for-recipe-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Empty content check for recipe capabilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#other-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5430,6 +5482,8 @@ A few regexes for fixing all the MCMeta files is follows, run them in order:</p>
 </ol>
 <h2 id="irecipehandler-nullability">IRecipeHandler nullability</h2>
 <p>Previously, <code>handleRecipeInner</code> should return <code>null</code> when there's nothing left to process. This has been changed to requiring an empty list (e.g. the list of remaining ingredients). Returning <code>null</code> is now wrong and will crash (NPE).</p>
+<h2 id="empty-content-check-for-recipe-capabilities">Empty content check for recipe capabilities</h2>
+<p>As a recipe-matching optimization, input handlers whose <code>getTotalContentAmount()</code> returns <code>0</code> are now skipped during recipe handling. If your <code>RecipeCapability</code> has handlers that legitimately report a total content amount of <code>0</code> but can still satisfy a recipe (e.g. rate-based capabilities like computation/CWU, where nothing is "stored" but the handler can still provide), you must now override <code>RecipeCapability#skipEmptyContentCheck()</code> to return <code>true</code>, otherwise these capabilities will break (their handlers will never be run).</p>
 <h2 id="other-changes">Other Changes</h2>
 <ul>
 <li><code>BlastingRecipeBuilder</code>, <code>CampfireRecipeBuilder</code>, <code>SmeltingRecipeBuilder</code> and <code>SmokingRecipeBuilder</code> have been merged into <code>SimpleCookingRecipeBuilder</code><ul>
@@ -5445,6 +5499,7 @@ A few regexes for fixing all the MCMeta files is follows, run them in order:</p>
 <li>Refactored Jade provider code. Use the <code>MachineInfoProvider</code> class for jade providers for a specific machine type, and <code>MachineTraitProvider</code> for providers for a specific machine trait. </li>
 <li><code>GTUtil.getMoltenFluid(Material)</code> has been moved to <code>Material.getHotFluid()</code>.</li>
 <li><code>ICopyable::copyConfig</code>'s <code>CompoundTag</code> argument should now be mutated by reference instead of a new one returned (and thus, the return type has been changed to <code>void</code>).</li>
+<li>Tiered Chance Boosting has been formally removed from the API (as it was deprecated in v7.0.) <code>ChancedInput</code> and <code>ChancedOutput</code> kubeJS calls will throw errors if they still had chance boost values as arguments.</li>
 </ul>
 
 
