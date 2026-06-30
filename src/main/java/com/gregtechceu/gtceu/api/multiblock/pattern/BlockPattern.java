@@ -148,6 +148,7 @@ public class BlockPattern implements IBlockPattern {
         patternState.globalCount.clear();
         patternState.layerCount.clear();
         // Make sure every prerdicate with a minvalue is checked
+        // this is completely unnecessary, merge int already handles this
         for (PatternPredicate predicate : predicates.values()) {
             for (BasePredicate basePredicate : predicate.subPredicates) {
                 if (basePredicate.minCount > 0) {
@@ -169,6 +170,7 @@ public class BlockPattern implements IBlockPattern {
         sliceStrategy.start(controllerPos, frontFacing, upwardsFacing);
         if (!sliceStrategy.check(patternState, isFlipped)) return false;
 
+        // global min count check
         for (Object2IntMap.Entry<BasePredicate> entry : patternState.globalCount.object2IntEntrySet()) {
             if (entry.getIntValue() < entry.getKey().minCount) {
                 patternState
@@ -222,6 +224,7 @@ public class BlockPattern implements IBlockPattern {
                     patternState.cache.put(charPos.asLong(), new BlockInfo(state, blockEntity));
                 }
 
+                // test predicate, global max, slice max
                 List<PatternError> errors = pred.test(patternState.currentBlockInfo, patternState.globalCount,
                         patternState.layerCount);
                 if (!errors.isEmpty()) {
@@ -236,6 +239,7 @@ public class BlockPattern implements IBlockPattern {
             charPos.set(stringStart);
         }
 
+        // test min slice count
         for (Object2IntMap.Entry<BasePredicate> entry : patternState.layerCount.object2IntEntrySet()) {
             if (entry.getIntValue() < entry.getKey().minSliceCount) {
                 patternState.setError(

@@ -34,7 +34,7 @@ import java.util.function.Function;
 /*
  * the base predicate
  * main thing is errorPredicate
- *
+ * this keeps track of global/slice min/max
  */
 public class BasePredicate {
 
@@ -118,9 +118,11 @@ public class BasePredicate {
         return errorPredicate.apply(currBlock);
     }
 
+    // test global max and slice max
     public @Nullable PatternError testLimited(CurrentBlockInfo currBlock,
                                               Object2IntMap<BasePredicate> globalCache,
                                               @Nullable Object2IntMap<BasePredicate> layerCache) {
+        // errorPredicate is called twice here
         PatternError error = testGlobal(currBlock, globalCache, layerCache);
         if (error != null) return error;
         return testLayer(currBlock, layerCache);

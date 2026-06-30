@@ -194,6 +194,8 @@ public class PatternPredicate {
         List<PatternError> lastErrors = new ArrayList<>();
         for (BasePredicate p : subPredicates) {
             PatternError error = p.testLimited(currBlock, globalCache, layerCache);
+            // if any sub predicate passes, return no error
+            // this is OR logic
             if (error == null) return List.of();
             lastErrors.add(error);
         }

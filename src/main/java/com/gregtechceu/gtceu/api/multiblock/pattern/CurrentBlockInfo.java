@@ -13,6 +13,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
+/*
+ * ideally i would like this to have a list of errors
+ * to pass up to BlockPattern
+ */
 public class CurrentBlockInfo {
 
     @Setter
