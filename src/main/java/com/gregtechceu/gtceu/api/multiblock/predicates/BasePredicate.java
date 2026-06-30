@@ -31,6 +31,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Function;
 
+/*
+ * the base predicate
+ * main thing is errorPredicate
+ *
+ */
 public class BasePredicate {
 
     @Getter
@@ -77,6 +82,7 @@ public class BasePredicate {
         this.candidates = candidates != null ? candidates : Collections.emptyList();
     }
 
+    // unused method
     @OnlyIn(Dist.CLIENT)
     public List<Component> getTooltips(@Nullable PatternPredicate predicates) {
         List<Component> result = new ArrayList<>();
@@ -105,6 +111,9 @@ public class BasePredicate {
         return result;
     }
 
+    // test with error predicate directly
+    // no global/slice checks
+    // also unused
     public @Nullable PatternError testRaw(CurrentBlockInfo currBlock) {
         return errorPredicate.apply(currBlock);
     }

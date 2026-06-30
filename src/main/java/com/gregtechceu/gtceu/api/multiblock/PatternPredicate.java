@@ -16,6 +16,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/*
+ * responsible for managing several sub predicates
+ */
 public class PatternPredicate {
 
     public static PatternPredicate ANY = new PatternPredicate("Any", currentBlockInfo -> null, null);
@@ -96,6 +99,7 @@ public class PatternPredicate {
         return this;
     }
 
+    // used for predicate error
     public List<List<BlockInfo>> getCandidates() {
         return subPredicates.stream()
                 .map(BasePredicate::getCandidates)
