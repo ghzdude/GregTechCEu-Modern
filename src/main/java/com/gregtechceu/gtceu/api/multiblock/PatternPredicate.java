@@ -1,6 +1,7 @@
 package com.gregtechceu.gtceu.api.multiblock;
 
 import com.gregtechceu.gtceu.api.multiblock.error.PatternError;
+import com.gregtechceu.gtceu.api.multiblock.error.PlaceholderError;
 import com.gregtechceu.gtceu.api.multiblock.error.SimplePatternError;
 import com.gregtechceu.gtceu.api.multiblock.pattern.CurrentBlockInfo;
 import com.gregtechceu.gtceu.api.multiblock.predicates.BasePredicate;
@@ -10,7 +11,9 @@ import net.minecraft.network.chat.Component;
 
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.*;
 import java.util.function.Function;
@@ -33,6 +36,9 @@ public class PatternPredicate {
     protected boolean hasAir = false;
     @Getter
     protected boolean isSingle = true;
+    @Getter
+    @Setter
+    private LogicType logic = LogicType.OR;
 
     public PatternPredicate() {}
 
@@ -41,6 +47,7 @@ public class PatternPredicate {
         isController = predicate.isController;
         hasAir = predicate.hasAir;
         isSingle = predicate.isSingle;
+        logic = predicate.logic;
     }
 
     /**
@@ -80,7 +87,11 @@ public class PatternPredicate {
     }
 
     public boolean hasAir() {
-        return hasAir;
+        return hasAir || isAir();
+    }
+
+    public boolean isAir() {
+        return this == AIR;
     }
 
     /**
@@ -191,26 +202,62 @@ public class PatternPredicate {
 
     public List<PatternError> test(CurrentBlockInfo currBlock, Object2IntMap<BasePredicate> globalCache,
                                    @Nullable Object2IntMap<BasePredicate> layerCache) {
-        List<PatternError> lastErrors = new ArrayList<>();
-        for (BasePredicate p : subPredicates) {
-            PatternError error = p.testLimited(currBlock, globalCache, layerCache);
-            // if any sub predicate passes, return no error
-            // this is OR logic
-            if (error == null) return List.of();
-            lastErrors.add(error);
-        }
-        return lastErrors;
+        return getLogic().run(currBlock, globalCache, layerCache, this);
     }
 
     public PatternPredicate or(@Nullable PatternPredicate other) {
-        if (other != null) {
-            PatternPredicate newPredicate = new PatternPredicate(this);
-            newPredicate.hasAir = newPredicate.hasAir || this == AIR || other == AIR;
-            newPredicate.subPredicates.addAll(other.subPredicates);
-            newPredicate.subPredicates.sort(predicateComparator);
-            return newPredicate;
+        return merge(this, other, LogicType.OR);
+    }
+
+    public PatternPredicate xor(@Nullable PatternPredicate other) {
+        return merge(this, other, LogicType.XOR);
+    }
+
+    private BasePredicate compact() {
+        return new BasePredicate() {
+
+            {
+                debugName = getLogic().name();
+                tooltips = subPredicates.stream()
+                        .map(bp -> bp.tooltips)
+                        .filter(Objects::nonNull)
+                        .flatMap(Collection::stream)
+                        .toList();
+            }
+
+            @Override
+            public @Nullable PatternError testLimited(CurrentBlockInfo currBlock,
+                                                      Object2IntMap<BasePredicate> globalCache,
+                                                      @Nullable Object2IntMap<BasePredicate> layerCache) {
+                var errors = getLogic().run(currBlock, globalCache, layerCache, PatternPredicate.this);
+                // todo multi error
+                return errors.isEmpty() ? null :
+                        new PlaceholderError(currBlock.getPos(), PatternPredicate.this.getCandidates());
+            }
+        };
+    }
+
+    private static PatternPredicate merge(PatternPredicate a, @Nullable PatternPredicate b, LogicType type) {
+        if (b == null) return a;
+        PatternPredicate newPredicate = new PatternPredicate();
+        newPredicate.logic = type;
+        newPredicate.hasAir = a.hasAir || b.hasAir;
+        if (a.logic != type && b.logic != type) {
+            // a and b do not match expected type
+            newPredicate.subPredicates.add(a.compact());
+            newPredicate.subPredicates.add(b.compact());
+        } else if (a.logic != type) {
+            // b matches type
+            newPredicate.subPredicates.add(a.compact());
+            newPredicate.subPredicates.addAll(b.subPredicates);
+        } else {
+            // a matches type, b may or may not
+            newPredicate.subPredicates.addAll(a.subPredicates);
+            if (b.logic == type) newPredicate.subPredicates.addAll(b.subPredicates);
+            else newPredicate.subPredicates.add(b.compact());
         }
-        return this;
+        newPredicate.subPredicates.sort(predicateComparator);
+        return newPredicate;
     }
 
     @Override
@@ -221,5 +268,55 @@ public class PatternPredicate {
         return this.hasAir == pred.hasAir &&
                 this.isController == pred.isController &&
                 this.subPredicates.equals(pred.subPredicates);
+    }
+
+    private enum LogicType {
+
+        OR {
+
+            @Override
+            List<PatternError> run(CurrentBlockInfo currBlock, Object2IntMap<BasePredicate> globalCache,
+                                   @Nullable Object2IntMap<BasePredicate> layerCache,
+                                   @UnknownNullability PatternPredicate predicates) {
+                List<PatternError> lastErrors = new ArrayList<>();
+                for (BasePredicate p : predicates.subPredicates) {
+                    PatternError error = p.testLimited(currBlock, globalCache, layerCache);
+                    // if any sub predicate passes, return no error
+                    // this is OR logic
+                    if (error == null) return List.of();
+                    lastErrors.add(error);
+                }
+                return lastErrors;
+            }
+        },
+        XOR {
+
+            @Override
+            List<PatternError> run(CurrentBlockInfo currBlock, Object2IntMap<BasePredicate> globalCache,
+                                   @Nullable Object2IntMap<BasePredicate> layerCache,
+                                   @UnknownNullability PatternPredicate predicates) {
+                List<PatternError> lastErrors = new ArrayList<>();
+                int passed = 0;
+                for (BasePredicate p : predicates.subPredicates) {
+                    PatternError error = p.testLimited(currBlock, globalCache, layerCache);
+                    // if any sub predicate passes, return no error
+                    // this is OR logic
+                    if (error == null) {
+                        if (++passed > 1) {
+                            // todo xor error?
+                            lastErrors.add(new PlaceholderError(currBlock.getPos(), predicates.getCandidates()));
+                            return lastErrors; // short circuit
+                        }
+                    } else {
+                        lastErrors.add(error);
+                    }
+                }
+                return passed == 1 ? List.of() : lastErrors;
+            }
+        };
+
+        abstract List<PatternError> run(CurrentBlockInfo currBlock, Object2IntMap<BasePredicate> globalCache,
+                                        @Nullable Object2IntMap<BasePredicate> layerCache,
+                                        @UnknownNullability PatternPredicate predicates);
     }
 }

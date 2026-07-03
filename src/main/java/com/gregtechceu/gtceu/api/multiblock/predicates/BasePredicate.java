@@ -148,7 +148,6 @@ public class BasePredicate {
 
         return new SinglePredicateError(this, SinglePredicateError.ErrorType.MAX_LAYER_COUNT,
                 count);
-
     }
 
     public String getPredicateName() {
