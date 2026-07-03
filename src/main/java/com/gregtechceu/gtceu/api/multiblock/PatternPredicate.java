@@ -242,19 +242,15 @@ public class PatternPredicate {
         PatternPredicate newPredicate = new PatternPredicate();
         newPredicate.logic = type;
         newPredicate.hasAir = a.hasAir || b.hasAir;
-        if (a.logic != type && b.logic != type) {
-            // a and b do not match expected type
+        if (a.logic != type) {
             newPredicate.subPredicates.add(a.compact());
-            newPredicate.subPredicates.add(b.compact());
-        } else if (a.logic != type) {
-            // b matches type
-            newPredicate.subPredicates.add(a.compact());
-            newPredicate.subPredicates.addAll(b.subPredicates);
         } else {
-            // a matches type, b may or may not
             newPredicate.subPredicates.addAll(a.subPredicates);
-            if (b.logic == type) newPredicate.subPredicates.addAll(b.subPredicates);
-            else newPredicate.subPredicates.add(b.compact());
+        }
+        if (b.logic != type) {
+            newPredicate.subPredicates.add(b.compact());
+        } else {
+            newPredicate.subPredicates.addAll(b.subPredicates);
         }
         newPredicate.subPredicates.sort(predicateComparator);
         return newPredicate;
