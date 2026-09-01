@@ -16,6 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.Getter;
 
 import java.util.function.BooleanSupplier;
@@ -43,7 +45,6 @@ public class PredicateTests {
     public static void runPredicateTests(GameTestHelper helper) {
         testHelper = helper;
 
-        clearCounts();
         testPredicateCounts(helper);
 
         helper.succeed();
@@ -56,16 +57,20 @@ public class PredicateTests {
         setPos(ONE);
         BlockPos anchor = getRelativePos();
 
-        // fill blocks
-        for (int i = 0; i < 4; i++) {
-            setBlock(Blocks.STONE);
-            move(Direction.NORTH);
-        }
-        move(Direction.WEST);
-        for (int i = 0; i < 4; i++) {
-            move(Direction.SOUTH);
-            setBlock(Blocks.DIRT);
-        }
+        Object2IntMap<Block> toPlace = new Object2IntArrayMap<>(2);
+        toPlace.put(Blocks.STONE, 4);
+        toPlace.put(Blocks.DIRT, 4);
+
+        testMove(2, 4, anchor, () -> {
+            if (toPlace.getInt(Blocks.STONE) > 0) {
+                setBlock(Blocks.STONE);
+                toPlace.merge(Blocks.STONE, -1, Integer::sum);
+            } else if (toPlace.getInt(Blocks.DIRT) > 0) {
+                setBlock(Blocks.DIRT);
+                toPlace.merge(Blocks.DIRT, -1, Integer::sum);
+            }
+            return true;
+        });
 
         // test
         BooleanSupplier testingFunction = () -> {
@@ -83,6 +88,12 @@ public class PredicateTests {
         helper.assertTrue(passed, "predicate did not pass as expected");
     }
 
+    @AfterBatch(batch = "predicateTest")
+    public static void disposePredicateTests(ServerLevel level) {
+        testHelper = null;
+        ctx = null;
+    }
+
     private static boolean testMove(int xMax, int zMax, BlockPos anchor, BooleanSupplier tester) {
         for (int x = 0; x < xMax; x++) {
             for (int z = 0; z < zMax; z++) {
@@ -94,12 +105,6 @@ public class PredicateTests {
             }
         }
         return true;
-    }
-
-    @AfterBatch(batch = "predicateTest")
-    public static void disposePredicateTests(ServerLevel level) {
-        testHelper = null;
-        ctx = null;
     }
 
     private static void setBlock(Block block) {
