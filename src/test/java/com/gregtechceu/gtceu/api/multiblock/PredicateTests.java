@@ -5,11 +5,8 @@ import com.gregtechceu.gtceu.api.multiblock.predicates.BasePredicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.AfterBatch;
-import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.gametest.GameTestHolder;
@@ -26,37 +23,22 @@ import java.util.function.Predicate;
 @GameTestHolder(GTCEu.MOD_ID)
 public class PredicateTests {
 
-    public static final String EMPTY = "empty_5x5";
+    public static final String EMPTY_5X5 = "empty_5x5";
     public static final String PREDICATE_TEST = "predicateTest";
 
     private static final BlockPos ONE = new BlockPos(1, 0, 1);
 
-    private static MultiPredicate STONE_PREDICATE;
-    private static MultiPredicate DIRT_PREDICATE;
+    private static final MultiPredicate STONE_PREDICATE = Predicates.blocks(Blocks.STONE);
+    private static final MultiPredicate DIRT_PREDICATE = Predicates.blocks(Blocks.DIRT);
 
-    @BeforeBatch(batch = PREDICATE_TEST)
-    public static void setupPredicateTests(ServerLevel level) {
-        STONE_PREDICATE = Predicates.blocks(Blocks.STONE);
-        DIRT_PREDICATE = Predicates.blocks(Blocks.DIRT);
-    }
-
-    // @GameTest(template = EMPTY, batch = PREDICATE_TEST)
-    // public static void runPredicateTests(GameTestHelper helper) {
-    // testPredicateCounts(helper);
-    //
-    // helper.succeed();
-    // }
-
-    @GameTest(template = EMPTY, batch = PREDICATE_TEST)
+    @GameTest(template = EMPTY_5X5, batch = PREDICATE_TEST)
     public static void testAndPredicateLogic(GameTestHelper helper) {
         Object2IntMap<Block> toPlace = new Object2IntArrayMap<>(2);
         toPlace.put(Blocks.STONE, 4);
         toPlace.put(Blocks.DIRT, 4);
 
         var extension = new HelperExtension(helper);
-        extension.setPos(ONE);
-        final BlockPos anchor = extension.getRelativePos();
-        extension.placeBlocks(2, 4, anchor, pos -> {
+        extension.placeBlocks(2, 4, ONE, pos -> {
             if (toPlace.getInt(Blocks.STONE) > 0) {
                 extension.setBlock(Blocks.STONE);
                 toPlace.merge(Blocks.STONE, -1, Integer::sum);
@@ -76,15 +58,15 @@ public class PredicateTests {
 
         boolean passed;
         // 4 stone, 4 dirt
-        passed = extension.testMove(2, 4, anchor, testingFunction);
+        passed = extension.testMove(2, 4, ONE, testingFunction);
         helper.assertFalse(passed, "predicate did not fail as expected");
         extension.clearCounts();
         // 2 stone, 2 dirt
-        passed = extension.testMove(2, 2, anchor, testingFunction);
+        passed = extension.testMove(2, 2, ONE, testingFunction);
         helper.assertTrue(passed, "predicate did not pass as expected");
     }
 
-    @GameTest(template = EMPTY, batch = PREDICATE_TEST)
+    @GameTest(template = EMPTY_5X5, batch = PREDICATE_TEST)
     public static void testXorPredicateLogic(GameTestHelper helper) {
         var extension = new HelperExtension(helper);
         extension.placeBlocks(2, 1, ONE, pos -> {
@@ -102,61 +84,6 @@ public class PredicateTests {
             return predicate != null && predicate.checkMaxCount(ctx);
         });
         helper.assertFalse(passed, "predicate did not fail as expected");
-    }
-
-    // private static void testPredicateCounts(GameTestHelper helper) {
-    // MultiPredicate stonePredicate = Predicates.blocks(Blocks.STONE);
-    // MultiPredicate dirtPredicate = Predicates.blocks(Blocks.DIRT);
-    // MultiPredicate andPredicate = stonePredicate.and(dirtPredicate).withMaxCount(4);
-    // MultiPredicate orPredicate = stonePredicate.or(dirtPredicate);
-    // MultiPredicate xorPredicate = stonePredicate.xor(dirtPredicate);
-    // setPos(ONE);
-    // BlockPos anchor = getRelativePos();
-    //
-    // Object2IntMap<Block> toPlace = new Object2IntArrayMap<>(2);
-    // toPlace.put(Blocks.STONE, 4);
-    // toPlace.put(Blocks.DIRT, 4);
-    //
-    // testMove(2, 4, anchor, () -> {
-    // if (toPlace.getInt(Blocks.STONE) > 0) {
-    // setBlock(Blocks.STONE);
-    // toPlace.merge(Blocks.STONE, -1, Integer::sum);
-    // } else if (toPlace.getInt(Blocks.DIRT) > 0) {
-    // setBlock(Blocks.DIRT);
-    // toPlace.merge(Blocks.DIRT, -1, Integer::sum);
-    // }
-    // return true;
-    // });
-    //
-    // // test
-    // BooleanSupplier testingFunction = toTestFunction(andPredicate);
-    //
-    // boolean passed;
-    // // 4 stone, 4 dirt
-    // passed = testMove(2, 4, anchor, testingFunction);
-    // helper.assertFalse(passed, "predicate did not fail as expected");
-    // clearCounts();
-    // // 2 stone, 2 dirt
-    // passed = testMove(2, 2, anchor, testingFunction);
-    // helper.assertTrue(passed, "predicate did not pass as expected");
-    //
-    // // test xor
-    // testingFunction = toTestFunction(xorPredicate);
-    // passed = testMove(2, 4, anchor, testingFunction);
-    // helper.assertFalse(passed, "predicate did not fail as expected");
-    // }
-    //
-    // @NotNull
-    // private static BooleanSupplier toTestFunction(MultiPredicate andPredicate) {
-    // return () -> {
-    // BasePredicate predicate = andPredicate.getPredicateAtPos(ctx);
-    // return predicate != null && predicate.checkMaxCount(ctx);
-    // };
-    // }
-
-    @AfterBatch(batch = PREDICATE_TEST)
-    public static void disposePredicateTests(ServerLevel level) {
-        // ctx = null;
     }
 
     private static class HelperExtension {
