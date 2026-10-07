@@ -19,12 +19,12 @@ import com.gregtechceu.gtceu.common.network.GTNetwork;
 import com.gregtechceu.gtceu.common.network.packets.CPacketTerminalSettings;
 import com.gregtechceu.gtceu.integration.recipeviewer.widgets.MultiblockPreviewWidget;
 
+import com.mojang.serialization.DataResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -240,9 +240,60 @@ public class TerminalBehavior implements IInteractionItem, IItemUIHolder, IAddIn
     }
 
     public static void applyUserPreferences(ItemStack item, MultiblockSchemaInfo schemaInfo) {
-        CompoundTag tag = item.getOrCreateTag();
-        tag.put(SCHEMA_INFO_TAG, MultiblockSchemaInfo.CODEC.encodeStart(NbtOps.INSTANCE, schemaInfo)
-                .getOrThrow(false, GTCEu.LOGGER::error));
+        MultiblockSchemaInfo.CODEC.encodeStart(SpecialOps.INSTANCE, schemaInfo)
+                .result()
+                .ifPresent(t -> item.getOrCreateTag().put(SCHEMA_INFO_TAG, t));
+    }
+
+    static class SpecialOps extends NbtOps {
+
+        private static final SpecialOps INSTANCE = new SpecialOps();
+
+        @Override
+        public DataResult<Number> getNumberValue(Tag tag) {
+            if (tag instanceof StringTag) {
+                String raw = tag.getAsString();
+                String[] split = raw.split(":");
+                if (split.length == 2) {
+                    int var = Integer.parseInt(split[0], 16);
+                    return switch (var) {
+                        case 1 -> DataResult.success(Byte.valueOf(split[1], 16));
+                        case 2 -> DataResult.success(Short.valueOf(split[1], 16));
+                        case 3 -> DataResult.success(Integer.valueOf(split[1], 16));
+                        case 4 -> DataResult.success(Long.valueOf(split[1], 16));
+                        case 5 -> DataResult.success(Float.valueOf(split[1]));
+                        case 6 -> DataResult.success(Double.valueOf(split[1]));
+                        default -> DataResult.error(() -> "Cannot parse " + raw);
+                    };
+                }
+            }
+            return super.getNumberValue(tag);
+        }
+
+        @Override
+        public DataResult<String> getStringValue(Tag tag) {
+            if (tag instanceof NumericTag numeric) {
+                String data;
+                if (numeric instanceof ByteTag) {
+                    data = Integer.toHexString(numeric.getAsByte());
+                } else if (numeric instanceof ShortTag) {
+                    data = Integer.toHexString(numeric.getAsShort());
+                } else if (numeric instanceof IntTag) {
+                    data = Integer.toHexString(numeric.getAsInt());
+                } else if (numeric instanceof LongTag) {
+                    data = Long.toHexString(numeric.getAsLong());
+                } else if (numeric instanceof FloatTag) {
+                    data = Float.toHexString(numeric.getAsFloat());
+                } else if (numeric instanceof DoubleTag) {
+                    data = Double.toHexString(numeric.getAsDouble());
+                } else {
+                    return DataResult.error(() -> "Cannot convert: " + tag);
+                }
+                String type = Integer.toHexString(tag.getId());
+                return DataResult.success("%s:%s".formatted(type, data));
+            }
+            return super.getStringValue(tag);
+        }
     }
 
     public MultiblockSchemaInfo loadSchemaInfo(ItemStack stack, MultiblockMachineDefinition definition) {
@@ -250,7 +301,7 @@ public class TerminalBehavior implements IInteractionItem, IItemUIHolder, IAddIn
         if (tag.contains(SCHEMA_INFO_TAG)) {
             try {
                 return MultiblockSchemaInfo.CODEC
-                        .parse(NbtOps.INSTANCE, tag.getCompound(SCHEMA_INFO_TAG))
+                        .parse(SpecialOps.INSTANCE, tag.getCompound(SCHEMA_INFO_TAG))
                         .getOrThrow(false, GTCEu.LOGGER::error);
             } catch (Exception e) {
                 return new MultiblockSchemaInfo(definition);
